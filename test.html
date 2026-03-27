@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>어린왕자 - 가로등 행성</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#000; overflow:hidden; font-family:'Georgia',serif; }
+  canvas { display:block; }
+  #title-screen {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:radial-gradient(ellipse at center,#0a0a2e 0%,#000005 70%);
+    z-index:100; display:flex; align-items:center; justify-content:center;
+    transition:opacity 1.5s ease;
+  }
+  #title-screen.hidden { opacity:0; pointer-events:none; }
+  .title-main { font-size:52px; color:#f5e642; letter-spacing:8px; font-style:italic;
+    text-shadow:0 0 30px rgba(245,230,66,.6); margin-bottom:8px; }
+  .title-sub  { font-size:22px; color:#a8d8f0; letter-spacing:4px;
+    text-shadow:0 0 20px rgba(168,216,240,.5); margin-bottom:60px; }
+  #start-btn {
+    padding:16px 50px; font-size:18px; letter-spacing:4px; background:transparent;
+    border:2px solid #f5e642; color:#f5e642; cursor:pointer; pointer-events:all;
+    transition:all .3s; font-family:'Georgia',serif; box-shadow:0 0 20px rgba(245,230,66,.2);
+  }
+  #start-btn:hover { background:rgba(245,230,66,.15); box-shadow:0 0 40px rgba(245,230,66,.5); transform:scale(1.05); }
+  #mode-select {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    text-align:center; z-index:50; opacity:0; transition:opacity .8s; pointer-events:none;
+  }
+  #mode-select.visible { opacity:1; pointer-events:all; }
+  .mode-title { font-size:26px; color:#f5e642; letter-spacing:3px; margin-bottom:30px;
+    text-shadow:0 0 20px rgba(245,230,66,.6); }
+  .mode-btn {
+    display:block; width:220px; padding:14px 30px; margin:12px auto; font-size:16px;
+    letter-spacing:3px; background:rgba(0,0,0,.7); border:2px solid; cursor:pointer;
+    pointer-events:all; transition:all .3s; font-family:'Georgia',serif;
+  }
+  .mode-btn.story { border-color:#f5e642; color:#f5e642; }
+  .mode-btn.story:hover { background:rgba(245,230,66,.2); }
+  .mode-btn.free  { border-color:#a8d8f0; color:#a8d8f0; }
+  .mode-btn.free:hover  { background:rgba(168,216,240,.2); }
+  #story-bubble {
+    position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+    background:rgba(5,5,30,.92); border:1px solid rgba(245,230,66,.5);
+    border-radius:12px; padding:20px 30px; max-width:600px; width:90%;
+    z-index:50; opacity:0; transition:opacity .5s; pointer-events:none;
+    box-shadow:0 0 30px rgba(245,230,66,.15);
+  }
+  #story-bubble.visible  { opacity:1; pointer-events:all; }
+  #story-bubble.clickable { cursor:pointer; }
+  #story-bubble.clickable:hover { border-color:rgba(245,230,66,.85); }
+  .bubble-speaker { font-size:13px; color:#f5e642; letter-spacing:2px; margin-bottom:8px; opacity:.8; }
+  .bubble-text    { font-size:16px; color:#e8e8e8; line-height:1.9; white-space:pre-line; }
+  .bubble-next    { text-align:right; margin-top:12px; font-size:12px; color:#a8d8f0; letter-spacing:2px; opacity:.7; }
+  #free-ui {
+    position:fixed; top:20px; right:20px; z-index:50;
+    opacity:0; transition:opacity .5s; pointer-events:none;
+    display:flex; flex-direction:column; align-items:flex-end; gap:12px;
+  }
+  #free-ui.visible { opacity:1; pointer-events:all; }
+  .ui-panel { background:rgba(5,5,30,.85); border:1px solid rgba(168,216,240,.3);
+    border-radius:10px; padding:12px 16px; }
+  .ui-label { font-size:11px; color:#a8d8f0; letter-spacing:2px; margin-bottom:6px; opacity:.8; }
+  #speed-slider { -webkit-appearance:none; width:160px; height:3px;
+    background:rgba(168,216,240,.3); border-radius:2px; outline:none; }
+  #speed-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px;
+    background:#a8d8f0; border-radius:50%; cursor:pointer; }
+  .ui-btn { padding:8px 18px; font-size:12px; letter-spacing:2px; background:transparent;
+    cursor:pointer; transition:all .3s; font-family:'Georgia',serif; }
+  #pause-btn { border:1px solid #f5e642; color:#f5e642; border-radius:6px; }
+  #pause-btn:hover { background:rgba(245,230,66,.15); }
+  #exit-btn  { border:1px solid rgba(255,100,100,.5); color:rgba(255,150,150,.9); border-radius:6px; }
+  #exit-btn:hover  { background:rgba(255,100,100,.15); }
+  #hint-text {
+    position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
+    font-size:12px; color:rgba(168,216,240,.7); letter-spacing:2px; z-index:50;
+    opacity:0; transition:opacity .5s; pointer-events:none;
+    background:rgba(0,0,0,.5); padding:7px 16px; border-radius:20px;
+  }
+  #hint-text.visible { opacity:1; }
+  #drag-hint {
+    position:fixed; bottom:66px; left:50%; transform:translateX(-50%);
+    font-size:11px; color:rgba(168,216,240,.5); letter-spacing:2px; z-index:50;
+    opacity:0; transition:opacity .5s; pointer-events:none;
+  }
+  #drag-hint.visible { opacity:1; }
+  .float-bubble {
+    position:fixed; background:rgba(255,255,240,.97); border-radius:16px;
+    padding:7px 13px; font-size:13px; color:#333; white-space:nowrap;
+    pointer-events:none; opacity:0; transition:opacity .3s;
+    box-shadow:0 3px 15px rgba(0,0,0,.25); border:1px solid rgba(245,230,66,.5);
+  }
+  .float-bubble::after {
+    content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+    border:5px solid transparent; border-top-color:rgba(255,255,240,.97);
+  }
+  .float-bubble.visible { opacity:1; }
+  #time-indicator {
+    position:fixed; top:20px; left:20px; z-index:50;
+    font-size:13px; color:rgba(255,255,255,.65); letter-spacing:2px;
+    opacity:0; transition:opacity .5s; pointer-events:none;
+    background:rgba(0,0,0,.45); padding:6px 14px; border-radius:20px;
+  }
+  #time-indicator.visible { opacity:1; }
+  #fade-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:#000; z-index:200; opacity:0; pointer-events:none;
+  }
+  #loading {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:#000010; z-index:500; display:flex; align-items:center;
+    justify-content:center; color:#f5e642; font-size:18px; letter-spacing:4px;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">로딩 중...</div>
+<div id="fade-overlay"></div>
+
+<div id="title-screen">
+  <div style="text-align:center">
+    <div class="title-main">어린왕자</div>
+    <div class="title-sub">가로등 행성</div>
+    <button id="start-btn">시 작 하 기</button>
+  </div>
+</div>
+
+<div id="mode-select">
+  <div class="mode-title">모드를 선택하세요</div>
+  <button class="mode-btn story" id="story-mode-btn">📖 이야기 모드</button>
+  <button class="mode-btn free"  id="free-mode-btn">🌍 자유 모드</button>
+</div>
+
+<div id="story-bubble">
+  <div class="bubble-speaker" id="bubble-speaker"></div>
+  <div class="bubble-text"    id="bubble-text"></div>
+  <div class="bubble-next">클릭하여 계속 ▶</div>
+</div>
+
+<div id="free-ui">
+  <div class="ui-panel">
+    <div class="ui-label">자전 속도</div>
+    <input type="range" id="speed-slider" min="0.1" max="5" step="0.1" value="1">
+  </div>
+  <button class="ui-btn" id="pause-btn">⏸ 일시정지</button>
+  <button class="ui-btn" id="exit-btn">✕ 나가기</button>
+</div>
+
+<div id="time-indicator">🌙 밤</div>
+<div id="hint-text">캐릭터를 클릭해 보세요!</div>
+<div id="drag-hint">🖱 드래그로 시점을 돌려보세요</div>
+
+<div class="float-bubble" id="prince-bubble"></div>
+<div class="float-bubble" id="lamplighter-bubble"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+if (typeof THREE === 'undefined') {
+  document.getElementById('loading').innerHTML =
+    '<div style="color:#f5e642;text-align:center;padding:40px;font-size:15px">' +
+    '⚠️ Three.js 로드 실패<br><br><span style="color:#a8d8f0;font-size:13px">인터넷 연결 확인 후 새로고침(F5)</span></div>';
+  throw new Error('THREE not loaded');
+}
+
+// ═══════════════════════════════════════════
+// RENDERER & SCENE
+// ═══════════════════════════════════════════
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x010115);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 2.5, 9);
+camera.lookAt(0, 0.5, 0);
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let gameState = 'loading';
+let isPaused  = false;
+let rotationSpeed = 1.0;
+let lampOn    = false;       // 처음엔 꺼진 상태 (낮에서 시작)
+let storyStep = 0;
+let isNight   = false;       // 현재 밤인지
+let spaceAngle = 0;          // 태양 공전 각도 (0 = 태양이 오른쪽 = 낮)
+let lamplighterAnimating = false;
+let lamplighterAnimFrame = 0;
+let lamplighterAction    = 'idle';
+let flyingPhase=0, flyingT=0;
+let exitPhase=0, exitT=0, exitActive=false;
+let elapsed=0, wingFlapT=0;
+let isDragging=false, dragPrev={x:0,y:0};
+let camTheta=0, camPhi=0.28, camRadius=9;
+const CAM_TARGET = new THREE.Vector3(0, 0.5, 0);
+
+// ═══════════════════════════════════════════
+// STARS
+// ═══════════════════════════════════════════
+(function(){
+  const geo = new THREE.BufferGeometry();
+  const cnt = 2500, pos = new Float32Array(cnt*3);
+  for(let i=0;i<cnt;i++){
+    const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1), r=120+Math.random()*180;
+    pos[i*3]  = r*Math.sin(ph)*Math.cos(th);
+    pos[i*3+1]= r*Math.sin(ph)*Math.sin(th);
+    pos[i*3+2]= r*Math.cos(ph);
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({color:0xffffff,size:0.35,sizeAttenuation:true})));
+
+  const yg = new THREE.BufferGeometry();
+  const yp = new Float32Array(80*3);
+  for(let i=0;i<80;i++){
+    yp[i*3]  =(Math.random()-.5)*80;
+    yp[i*3+1]=(Math.random()-.5)*50;
+    yp[i*3+2]=(Math.random()-.5)*40-5;
+  }
+  yg.setAttribute('position', new THREE.BufferAttribute(yp,3));
+  scene.add(new THREE.Points(yg, new THREE.PointsMaterial({color:0xf5e642,size:0.55})));
+})();
+
+// ═══════════════════════════════════════════
+// SUN (어린왕자 삽화 스타일 - 이미지 참고)
+// ═══════════════════════════════════════════
+// 태양은 scene에 직접 붙어서 공전 궤도를 따라 이동
+const SUN_ORBIT_R = 7.5; // 공전 반경
+
+function createSun() {
+  const g = new THREE.Group();
+
+  // ── 외곽 대형 글로우 ──
+  const outerGlow = new THREE.Mesh(
+    new THREE.CircleGeometry(2.2, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xffdd44, transparent: true, opacity: 0.12,
+      depthWrite: false, side: THREE.DoubleSide
+    })
+  );
+  g.add(outerGlow);
+
+  // ── 중간 글로우 ──
+  const midGlow = new THREE.Mesh(
+    new THREE.CircleGeometry(1.5, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xffcc00, transparent: true, opacity: 0.22,
+      depthWrite: false, side: THREE.DoubleSide
+    })
+  );
+  g.add(midGlow);
+
+  // ── 본체 (노란 원) ──
+  const body = new THREE.Mesh(
+    new THREE.CircleGeometry(0.88, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffe840, side: THREE.DoubleSide })
+  );
+  g.add(body);
+
+  // ── 빛살 — 이미지처럼 방사형 광선 ──
+  // 긴 광선 (이미지의 큰 삼각형 빛살)
+  const rayData = [
+    // [angle_offset, length, width]  — 이미지처럼 불규칙하게
+    [0,   1.05, 0.13],
+    [36,  0.75, 0.10],
+    [72,  1.15, 0.14],
+    [108, 0.70, 0.09],
+    [144, 1.00, 0.12],
+    [180, 0.80, 0.11],
+    [216, 1.10, 0.13],
+    [252, 0.72, 0.09],
+    [288, 0.95, 0.12],
+    [324, 0.78, 0.10],
+  ];
+  rayData.forEach(([deg, len, w]) => {
+    const a = (deg / 180) * Math.PI;
+    const sh = new THREE.Shape();
+    sh.moveTo(-w, 0); sh.lineTo(w, 0); sh.lineTo(0, len); sh.closePath();
+    const ray = new THREE.Mesh(
+      new THREE.ShapeGeometry(sh),
+      new THREE.MeshBasicMaterial({
+        color: 0xffdd33, transparent: true, opacity: 0.9, side: THREE.DoubleSide
+      })
+    );
+    ray.position.set(Math.cos(a)*0.9, Math.sin(a)*0.9, 0.01);
+    ray.rotation.z = a - Math.PI/2;
+    g.add(ray);
+  });
+
+  // 짧고 가는 보조 광선
+  for(let i=0;i<16;i++){
+    const a = (i/16)*Math.PI*2 + 0.18;
+    const sh = new THREE.Shape();
+    sh.moveTo(-0.055, 0); sh.lineTo(0.055, 0); sh.lineTo(0, 0.42); sh.closePath();
+    const ray = new THREE.Mesh(
+      new THREE.ShapeGeometry(sh),
+      new THREE.MeshBasicMaterial({
+        color: 0xffee88, transparent: true, opacity: 0.55, side: THREE.DoubleSide
+      })
+    );
+    ray.position.set(Math.cos(a)*0.9, Math.sin(a)*0.9, 0.01);
+    ray.rotation.z = a - Math.PI/2;
+    g.add(ray);
+  }
+
+  // ── 얼굴 ── (이미지의 원작 삽화 스타일)
+  // 눈 (두 점)
+  const eyeMat = new THREE.MeshBasicMaterial({color: 0xcc8800, side: THREE.DoubleSide});
+  const eyeL = new THREE.Mesh(new THREE.CircleGeometry(0.085, 10), eyeMat);
+  eyeL.position.set(-0.24, 0.18, 0.02);
+  g.add(eyeL);
+  const eyeR = new THREE.Mesh(new THREE.CircleGeometry(0.085, 10), eyeMat);
+  eyeR.position.set(0.24, 0.18, 0.02);
+  g.add(eyeR);
+
+  // 입 (웃는 호)
+  const smileSh = new THREE.Shape();
+  smileSh.absarc(0, 0.05, 0.24, Math.PI + 0.4, -0.4, true);
+  const smile = new THREE.Mesh(
+    new THREE.ShapeGeometry(smileSh),
+    new THREE.MeshBasicMaterial({color:0xcc8800, transparent:true, opacity:0.85, side:THREE.DoubleSide})
+  );
+  smile.position.set(0, -0.1, 0.02);
+  g.add(smile);
+
+  // 볼 홍조 (이미지처럼 살짝 분홍)
+  const blushMat = new THREE.MeshBasicMaterial({color:0xff9966, transparent:true, opacity:0.3, side:THREE.DoubleSide});
+  const blushL = new THREE.Mesh(new THREE.CircleGeometry(0.16, 12), blushMat);
+  blushL.position.set(-0.42, 0.06, 0.02);
+  g.add(blushL);
+  const blushR = new THREE.Mesh(new THREE.CircleGeometry(0.16, 12), blushMat);
+  blushR.position.set(0.42, 0.06, 0.02);
+  g.add(blushR);
+
+  return g;
+}
+
+const sunGroup = new THREE.Group();
+scene.add(sunGroup);
+const sunMesh = createSun();
+sunGroup.add(sunMesh);
+
+// 태양 조명
+const sunLight = new THREE.PointLight(0xfff5cc, 3.5, 30);
+sunGroup.add(sunLight);
+
+// ═══════════════════════════════════════════
+// PLANET
+// ═══════════════════════════════════════════
+const planetGroup = new THREE.Group();
+scene.add(planetGroup);
+
+const PLANET_R = 1.8;
+
+// 행성 본체
+const planetMat = new THREE.MeshPhongMaterial({
+  color: 0xeee4c0, shininess: 10,
+  specular: new THREE.Color(0x222200)
+});
+const planet = new THREE.Mesh(new THREE.SphereGeometry(PLANET_R, 48, 48), planetMat);
+planet.receiveShadow = true;
+planet.castShadow = true;
+planetGroup.add(planet);
+
+// 대기층 글로우
+const atmMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(PLANET_R * 1.07, 32, 32),
+  new THREE.MeshPhongMaterial({
+    color: 0xc8e0ff, transparent: true, opacity: 0.08,
+    side: THREE.FrontSide, depthWrite: false
+  })
+);
+planetGroup.add(atmMesh);
+
+// 표면 언덕
+const hillSeeds = [[0.5,0.3,0.18],[2.2,-0.1,0.22],[3.8,0.2,0.15],[5.0,-0.2,0.19],[1.4,0.1,0.14]];
+hillSeeds.forEach(([a,vy,r]) => {
+  const hill = new THREE.Mesh(
+    new THREE.SphereGeometry(r, 8, 8),
+    new THREE.MeshPhongMaterial({color:0xd8ccaa})
+  );
+  hill.position.set(Math.cos(a)*PLANET_R*0.99, vy, Math.sin(a)*PLANET_R*0.99);
+  planetGroup.add(hill);
+});
+
+// ═══════════════════════════════════════════
+// LAMP POST (행성 꼭대기 y축)
+// ═══════════════════════════════════════════
+const lampGroup = new THREE.Group();
+// 가로등을 행성 표면 12시 방향 꼭대기에
+lampGroup.position.set(0, PLANET_R, 0);
+planetGroup.add(lampGroup);
+
+const poleMat = new THREE.MeshPhongMaterial({color:0x777777});
+
+// 기둥
+const poleM = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.055, 2.0, 8), poleMat);
+poleM.position.y = 1.0;
+lampGroup.add(poleM);
+
+// 팔
+const armM = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.55, 8), poleMat);
+armM.rotation.z = Math.PI/2;
+armM.position.set(0.28, 2.0, 0);
+lampGroup.add(armM);
+
+// 갓
+const shadeM = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.11, 0.2, 0.24, 12),
+  new THREE.MeshPhongMaterial({color:0x444444})
+);
+shadeM.position.set(0.55, 2.0, 0);
+lampGroup.add(shadeM);
+
+// 전구
+const bulbMat = new THREE.MeshPhongMaterial({
+  color:0xffee88, emissive:new THREE.Color(0xffcc44),
+  emissiveIntensity:0.1, transparent:true, opacity:0.95
+});
+const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 12), bulbMat);
+bulb.position.set(0.55, 1.92, 0);
+lampGroup.add(bulb);
+
+// 가로등 광원
+const lampLight = new THREE.PointLight(0xffdd66, 0, 5);
+lampLight.position.set(0.55, 1.92, 0);
+lampGroup.add(lampLight);
+
+// 전구 글로우
+const glowMat = new THREE.MeshBasicMaterial({
+  color:0xffee88, transparent:true, opacity:0,
+  side:THREE.FrontSide, depthWrite:false
+});
+const lampGlow = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 12), glowMat);
+lampGlow.position.set(0.55, 1.92, 0);
+lampGroup.add(lampGlow);
+
+// ═══════════════════════════════════════════
+// LAMPLIGHTER (아저씨) — 가로등 옆 (1시 방향)
+// ═══════════════════════════════════════════
+// 정면(카메라 방향)에서 봤을 때:
+//   12시 = 가로등 (lampGroup, rotation.y=0)
+//   1시  = 아저씨  (약 30° = PI/6)
+//   2시  = 어린왕자 (약 60° = PI/3)
+// y축 회전 + 행성 표면 반지름만큼 offset
+
+const LAMP_ANGLE   = 0;               // 12시
+const MAN_ANGLE    = Math.PI / 6;     // 1시 (30°)
+const PRINCE_ANGLE = Math.PI / 3;     // 2시 (60°)
+const SURFACE_R    = PLANET_R;        // 표면 반지름
+
+const lamplighterGroup = new THREE.Group();
+// 행성 표면, y축 회전으로 1시 방향에 배치
+lamplighterGroup.position.set(
+  Math.sin(MAN_ANGLE) * SURFACE_R,
+  Math.cos(MAN_ANGLE) * SURFACE_R,
+  0
+);
+// 캐릭터가 행성 표면에 수직으로 서도록 기울임
+lamplighterGroup.rotation.z = -MAN_ANGLE;
+planetGroup.add(lamplighterGroup);
+
+function createLamplighter() {
+  const g = new THREE.Group();
+
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.14, 0.17, 0.42, 8),
+    new THREE.MeshPhongMaterial({color:0x3a6e30})
+  );
+  body.position.y = 0.21;
+  g.add(body);
+
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.135, 12, 12),
+    new THREE.MeshPhongMaterial({color:0xf0b888})
+  );
+  head.position.y = 0.57;
+  g.add(head);
+
+  const hatMat = new THREE.MeshPhongMaterial({color:0x2a2a0a});
+  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.035, 12), hatMat);
+  hatBrim.position.y = 0.68;
+  g.add(hatBrim);
+  const hatTop = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.155, 0.2, 12), hatMat);
+  hatTop.position.y = 0.79;
+  g.add(hatTop);
+
+  const legMat = new THREE.MeshPhongMaterial({color:0x2a2a0a});
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.32,6), legMat);
+  legL.position.set(-0.075, -0.04, 0);
+  g.add(legL);
+  const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.32,6), legMat);
+  legR.position.set(0.075, -0.04, 0);
+  g.add(legR);
+
+  const armMat = new THREE.MeshPhongMaterial({color:0x3a6e30});
+  const rArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.32,6), armMat);
+  rArm.name = 'rightArm';
+  rArm.position.set(0.19, 0.32, 0);
+  rArm.rotation.z = -0.4;
+  g.add(rArm);
+  const lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.32,6), armMat);
+  lArm.position.set(-0.19, 0.32, 0);
+  lArm.rotation.z = 0.4;
+  g.add(lArm);
+
+  const stick = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.022,0.022,1.3,6),
+    new THREE.MeshPhongMaterial({color:0x8B6914})
+  );
+  stick.name = 'stick';
+  stick.position.set(0.33, 0.65, 0);
+  stick.rotation.z = -0.3;
+  g.add(stick);
+
+  const flame = new THREE.Mesh(
+    new THREE.SphereGeometry(0.065, 8, 8),
+    new THREE.MeshPhongMaterial({
+      color:0xff8800, emissive:new THREE.Color(0xff4400),
+      emissiveIntensity:1.5, transparent:true, opacity:0.85
+    })
+  );
+  flame.name = 'stickFlame';
+  flame.position.set(0.7, 1.25, 0);
+  g.add(flame);
+
+  return g;
+}
+
+const lamplighter = createLamplighter();
+lamplighterGroup.add(lamplighter);
+
+// ═══════════════════════════════════════════
+// LITTLE PRINCE — 아저씨 바로 옆에
+// ═══════════════════════════════════════════
+const princeGroup = new THREE.Group();
+// 행성 표면, 2시 방향 (60°)
+princeGroup.position.set(
+  Math.sin(PRINCE_ANGLE) * SURFACE_R,
+  Math.cos(PRINCE_ANGLE) * SURFACE_R,
+  0
+);
+// 행성 표면에 수직으로 서도록 기울임
+princeGroup.rotation.z = -PRINCE_ANGLE;
+planetGroup.add(princeGroup);
+
+function createPrince(sc=1) {
+  const g = new THREE.Group();
+  g.scale.setScalar(sc);
+
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.11,0.14,0.38,8),
+    new THREE.MeshPhongMaterial({color:0x5a9e4a})
+  );
+  body.position.y = 0.19;
+  g.add(body);
+
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14,12,12),
+    new THREE.MeshPhongMaterial({color:0xf5d080})
+  );
+  head.position.y = 0.52;
+  g.add(head);
+
+  const hair = new THREE.Mesh(
+    new THREE.SphereGeometry(0.145,12,8,0,Math.PI*2,0,Math.PI*0.6),
+    new THREE.MeshPhongMaterial({color:0xf5d44a})
+  );
+  hair.position.y = 0.52;
+  g.add(hair);
+
+  const scarf = new THREE.Mesh(
+    new THREE.TorusGeometry(0.115,0.04,6,12),
+    new THREE.MeshPhongMaterial({color:0xf5d010})
+  );
+  scarf.position.y = 0.38;
+  scarf.rotation.x = 0.3;
+  g.add(scarf);
+
+  const legMat = new THREE.MeshPhongMaterial({color:0x5a9e4a});
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.28,6), legMat);
+  legL.position.set(-0.06,-0.04,0);
+  g.add(legL);
+  const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.28,6), legMat);
+  legR.position.set(0.06,-0.04,0);
+  g.add(legR);
+
+  const armMat = new THREE.MeshPhongMaterial({color:0x5a9e4a});
+  const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.28,6), armMat);
+  armR.position.set(0.16,0.28,0);
+  armR.rotation.z = -0.5;
+  g.add(armR);
+  const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.28,6), armMat);
+  armL.position.set(-0.16,0.28,0);
+  armL.rotation.z = 0.5;
+  g.add(armL);
+
+  return g;
+}
+
+princeGroup.add(createPrince());
+princeGroup.visible = false;
+
+// ═══════════════════════════════════════════
+// BIRDS (철새 무리)
+// ═══════════════════════════════════════════
+function createBird(sz=1) {
+  const g = new THREE.Group();
+  const bM = new THREE.MeshPhongMaterial({color:0x88bbcc, side:THREE.DoubleSide});
+
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04*sz,0.06*sz,0.25*sz,6),
+    new THREE.MeshPhongMaterial({color:0x99bbcc})
+  );
+  body.rotation.z = Math.PI/2;
+  g.add(body);
+
+  const ws = new THREE.Shape();
+  ws.moveTo(0,0);
+  ws.bezierCurveTo(0.15*sz,0.06*sz, 0.26*sz,0.16*sz, 0.32*sz,0);
+  ws.bezierCurveTo(0.2*sz,-0.08*sz, 0.1*sz,-0.05*sz, 0,0);
+
+  const lw = new THREE.Mesh(new THREE.ShapeGeometry(ws), bM);
+  lw.name = 'leftWing'; lw.position.z = 0.02;
+  g.add(lw);
+  const rw = new THREE.Mesh(new THREE.ShapeGeometry(ws), bM);
+  rw.name = 'rightWing'; rw.rotation.y = Math.PI; rw.position.z = -0.02;
+  g.add(rw);
+
+  const hd = new THREE.Mesh(
+    new THREE.SphereGeometry(0.07*sz,8,8),
+    new THREE.MeshPhongMaterial({color:0x77aabb})
+  );
+  hd.position.set(0.17*sz, 0.025*sz, 0);
+  g.add(hd);
+  return g;
+}
+
+const birdPos = [
+  [-0.8,1.5,0.1],[-0.3,1.8,-0.2],[0.3,1.6,0.2],[0.8,1.9,-0.1],
+  [-1.2,1.2,-0.15],[1.3,1.4,0.05],[-0.5,2.1,0.3],[0.5,2.0,-0.25],
+  [0.0,2.2,0.15],[-1.0,1.7,0.2]
+];
+
+function makeFlock() {
+  const f = new THREE.Group();
+  f.add(createPrince(1.0));
+  birdPos.forEach(p => {
+    const b = createBird(0.8);
+    b.position.set(p[0],p[1],p[2]);
+    b.rotation.y = 0.1;
+    f.add(b);
+    const lg = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(p[0]*0.3,p[1]*0.3,p[2]*0.3),
+      new THREE.Vector3(p[0],p[1],p[2])
+    ]);
+    f.add(new THREE.Line(lg, new THREE.LineBasicMaterial({color:0x888888,transparent:true,opacity:0.5})));
+  });
+  f.scale.setScalar(1.2);
+  return f;
+}
+
+const titleFlock = makeFlock(); scene.add(titleFlock); titleFlock.position.set(-12,2,-3);
+
+// exitFlock: 철새만 (어린왕자 없음 — 행성의 princeGroup을 직접 데려감)
+function makeExitFlock() {
+  const f = new THREE.Group();
+  birdPos.forEach(p => {
+    const b = createBird(0.8);
+    b.position.set(p[0],p[1],p[2]);
+    b.rotation.y = 0.1;
+    f.add(b);
+    const lg = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(p[0]*0.3,p[1]*0.3,p[2]*0.3),
+      new THREE.Vector3(p[0],p[1],p[2])
+    ]);
+    f.add(new THREE.Line(lg, new THREE.LineBasicMaterial({color:0x888888,transparent:true,opacity:0.5})));
+  });
+  f.scale.setScalar(1.2);
+  return f;
+}
+const exitFlock = makeExitFlock(); scene.add(exitFlock); exitFlock.visible = false;
+
+// ═══════════════════════════════════════════
+// 조명
+// ═══════════════════════════════════════════
+const ambientLight = new THREE.AmbientLight(0x1a2244, 0.5);
+scene.add(ambientLight);
+// 약한 달빛 (항상)
+const moonLight = new THREE.DirectionalLight(0x334466, 0.25);
+moonLight.position.set(-8, 3, -4);
+scene.add(moonLight);
+
+// ═══════════════════════════════════════════
+// STORY SCRIPT
+// ═══════════════════════════════════════════
+const storyScript = [
+  {speaker:'내레이션',   text:'어린왕자가 여섯 번째 행성에 도착했습니다.\n그 행성에는 가로등 하나와 가로등을 켜는 아저씨가 살고 있었습니다.', action:'arrive'},
+  {speaker:'가로등지기', text:'"안녕..." (가로등을 끕니다)', action:'extinguish'},
+  {speaker:'어린왕자',   text:'"안녕하세요! 왜 가로등을 껐다 켰다 하는 거예요?"', action:''},
+  {speaker:'가로등지기', text:'"명령이야. 안녕." (또 가로등을 켭니다)', action:'light'},
+  {speaker:'어린왕자',   text:'"무슨 명령이에요?"', action:''},
+  {speaker:'가로등지기', text:'"가로등을 끄는 명령. 잘 자. 안녕." (또 끕니다)\n\n예전엔 하루에 한 번만 켜고 껐는데... 그때부터 행성이 빨리 돌기 시작했지.', action:'extinguish'},
+  {speaker:'가로등지기', text:'"이제는 1분에 한 번씩 켰다 껐다 해야 해. 쉴 틈이 없어."', action:'light'},
+  {speaker:'어린왕자',   text:'"그럼 쉬고 싶을 때는 어떻게 해요?"', action:''},
+  {speaker:'가로등지기', text:'"쉬고 싶으면 걸으면 되지. 그런데 그게 무슨 소용이야..." (또 끕니다)', action:'extinguish'},
+  {speaker:'내레이션',   text:'어린왕자는 생각했습니다.\n\n"이 사람은 어리석지 않아. 일이 있고, 명령에 충실하니까.\n저 사람이 다른 행성 사람들에게 업신여김 받는 게 아깝다."', action:''},
+  {speaker:'어린왕자',   text:'"아저씨... 저는 이제 떠나야 해요. 안녕히 계세요."', action:''},
+  {speaker:'가로등지기', text:'"잘 가." (가로등을 켭니다)\n\n"저 아이와 함께라면 우리는 친구가 될 수 있었을 텐데..."', action:'light'},
+];
+
+// ═══════════════════════════════════════════
+// RAYCASTER
+// ═══════════════════════════════════════════
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let clickableObjects = [];
+
+function setupTypes() {
+  lampGroup.traverse(o=>{ if(o.isMesh) o.userData.type='lamp'; });
+  lamplighterGroup.traverse(o=>{ if(o.isMesh) o.userData.type='lamplighter'; });
+  princeGroup.traverse(o=>{ if(o.isMesh) o.userData.type='prince'; });
+}
+setupTypes();
+
+function updateClickables() {
+  clickableObjects = [];
+  if(gameState === 'free') {
+    lamplighterGroup.traverse(o=>{ if(o.isMesh) clickableObjects.push(o); });
+    if(princeGroup.visible) princeGroup.traverse(o=>{ if(o.isMesh) clickableObjects.push(o); });
+    if(isPaused) lampGroup.traverse(o=>{ if(o.isMesh) clickableObjects.push(o); });
+  }
+}
+
+function findType(m) {
+  let o = m;
+  while(o) {
+    if(o===lamplighterGroup) return 'lamplighter';
+    if(o===princeGroup)      return 'prince';
+    if(o===lampGroup)        return 'lamp';
+    o = o.parent;
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════
+// LAMP CONTROL
+// ═══════════════════════════════════════════
+function setLamp(on, anim=true) {
+  lampOn = on;
+  if(on) {
+    if(anim) triggerLampAnim('lighting');
+    else {
+      lampLight.intensity = 2.5;
+      bulbMat.emissiveIntensity = 2.5;
+      glowMat.opacity = 0.25;
+    }
+  } else {
+    if(anim) triggerLampAnim('extinguishing');
+    else {
+      lampLight.intensity = 0;
+      bulbMat.emissiveIntensity = 0.1;
+      glowMat.opacity = 0;
+    }
+  }
+}
+
+function triggerLampAnim(a) {
+  if(lamplighterAnimating) return;
+  lamplighterAnimating = true;
+  lamplighterAction    = a;
+  lamplighterAnimFrame = 0;
+}
+
+// ═══════════════════════════════════════════
+// FLOAT BUBBLE
+// ═══════════════════════════════════════════
+function showFloatBubble(who, text, dur=3000) {
+  const el = document.getElementById(who==='prince' ? 'prince-bubble' : 'lamplighter-bubble');
+  el.textContent = text; el.classList.add('visible');
+  if(dur>0) setTimeout(()=>el.classList.remove('visible'), dur);
+}
+
+function showStoryBubble(step) {
+  const s = storyScript[step];
+  document.getElementById('bubble-speaker').textContent = s.speaker;
+  document.getElementById('bubble-text').textContent    = s.text;
+  document.getElementById('story-bubble').classList.add('visible','clickable');
+  if(s.action==='arrive')     { princeGroup.visible=true; }
+  else if(s.action==='extinguish') setLamp(false,true);
+  else if(s.action==='light')      setLamp(true, true);
+}
+
+function nextStory() {
+  storyStep++;
+  if(storyStep >= storyScript.length){
+    document.getElementById('story-bubble').classList.remove('visible','clickable');
+    enterFreeMode(); return;
+  }
+  showStoryBubble(storyStep);
+}
+
+function enterFreeMode() {
+  gameState = 'free';
+  document.getElementById('free-ui').classList.add('visible');
+  document.getElementById('time-indicator').classList.add('visible');
+  document.getElementById('hint-text').textContent = '캐릭터를 클릭해 보세요!';
+  document.getElementById('hint-text').classList.add('visible');
+  princeGroup.visible = true;
+  updateClickables();
+  setTimeout(()=>document.getElementById('hint-text').classList.remove('visible'), 4000);
+}
+
+// ═══════════════════════════════════════════
+// BUBBLE SCREEN POSITION
+// ═══════════════════════════════════════════
+function updateBubblePos() {
+  if(gameState !== 'free') return;
+  [[princeGroup,'prince-bubble'],[lamplighterGroup,'lamplighter-bubble']].forEach(([grp,id])=>{
+    const wp = new THREE.Vector3();
+    grp.getWorldPosition(wp); wp.y += 1.0;
+    const p = wp.clone().project(camera);
+    const x = (p.x*.5+.5)*window.innerWidth;
+    const y = (-p.y*.5+.5)*window.innerHeight;
+    const el = document.getElementById(id);
+    el.style.left = (x - el.offsetWidth/2)+'px';
+    el.style.top  = (y - el.offsetHeight - 15)+'px';
+  });
+}
+
+// ═══════════════════════════════════════════
+// SUN ORBIT + DAY/NIGHT
+// ═══════════════════════════════════════════
+const ONE_MIN = 60; // 1분 = 60초
+
+// 태양 공전: 시계방향으로 위/아래를 돌게 함
+// 카메라에서 정면으로 봤을 때:
+//   spaceAngle=0    → 태양이 행성 바로 위(12시) → 낮
+//   spaceAngle=PI/2 → 태양이 오른쪽으로 지나감 → 저녁
+//   spaceAngle=PI   → 태양이 아래(6시) → 밤
+//   spaceAngle=3PI/2→ 태양이 왼쪽 → 새벽
+// yz 평면에서 공전 (x 성분 없음 → 정면에서 원 궤도로 보임)
+
+function updateSunOrbit(dt) {
+  if(isPaused) return;
+
+  spaceAngle += dt * (Math.PI * 2 / ONE_MIN) * rotationSpeed;
+
+  // 시계방향 yz 공전: y=cos, z=-sin (시계방향)
+  const sy =  Math.cos(spaceAngle) * SUN_ORBIT_R;
+  const sz = -Math.sin(spaceAngle) * SUN_ORBIT_R;
+  const sx =  Math.sin(spaceAngle) * 1.5;  // 살짝 앞뒤로도 움직여 입체감
+
+  sunGroup.position.set(sx, sy, sz);
+
+  // 태양이 항상 카메라를 바라보게
+  sunMesh.lookAt(camera.position);
+
+  // ── 낮/밤 판정 ──
+  // 가로등은 행성 꼭대기(0, PLANET_R, 0)에 있음
+  // 태양이 위쪽(y+)에 있으면 낮, 아래(y-)에 있으면 밤
+  // sy = cos(spaceAngle)*R → sy>0이면 낮
+  const dot = sy / SUN_ORBIT_R; // -1 ~ +1
+
+  const wasNight = isNight;
+  if(dot > 0.15)       isNight = false;  // 낮
+  else if(dot < -0.05) isNight = true;   // 밤
+
+  // 자유모드에서 낮/밤 전환 시 가로등 자동 제어
+  if(gameState==='free' && wasNight !== isNight) {
+    if(isNight && !lampOn)     setLamp(true,  true);  // 밤 시작 → 켬
+    else if(!isNight && lampOn) setLamp(false, true); // 낮 시작 → 끔
+  }
+
+  // 배경 밝기
+  const dayF = Math.max(0, dot);
+  scene.background = new THREE.Color(0x010115).lerp(new THREE.Color(0x0d0a30), dayF * 0.5);
+
+  // 주변광 & 태양광
+  ambientLight.intensity = 0.3 + dayF * 0.6;
+  sunLight.intensity     = 1.0 + dayF * 3.5;
+
+  // UI
+  const ind = document.getElementById('time-indicator');
+  if(ind) ind.textContent = isNight ? '🌙 밤' : '☀️ 낮';
+}
+
+// ═══════════════════════════════════════════
+// LAMPLIGHTER ANIMATION
+// ═══════════════════════════════════════════
+function updateLampAnim(dt) {
+  if(!lamplighterAnimating) return;
+  lamplighterAnimFrame += dt * 60;
+  const stick = lamplighter.getObjectByName('stick');
+  const rArm  = lamplighter.getObjectByName('rightArm');
+  const t = Math.min(lamplighterAnimFrame / 60, 1);
+  const e = t < .5 ? 2*t*t : -1+(4-2*t)*t;
+
+  if(lamplighterAction === 'lighting') {
+    if(stick) stick.rotation.z = -0.3 + e*(-1.4);
+    if(rArm)  rArm.rotation.z  = -0.4 + e*(-0.9);
+    lampLight.intensity = e*2.5;
+    bulbMat.emissiveIntensity = 0.1 + e*2.4;
+    glowMat.opacity = e*0.25;
+  } else {
+    if(stick) stick.rotation.z = -1.7 + e*1.4;
+    if(rArm)  rArm.rotation.z  = -1.3 + e*0.9;
+    lampLight.intensity = 2.5*(1-e);
+    bulbMat.emissiveIntensity = 2.5*(1-e*0.9);
+    glowMat.opacity = 0.25*(1-e);
+  }
+
+  if(t >= 1) {
+    lamplighterAnimating = false; lamplighterAnimFrame = 0;
+    if(stick) stick.rotation.z = -0.3;
+    if(rArm)  rArm.rotation.z  = -0.4;
+    if(lamplighterAction==='lighting') {
+      lampLight.intensity=2.5; bulbMat.emissiveIntensity=2.5; glowMat.opacity=0.25;
+    } else {
+      lampLight.intensity=0; bulbMat.emissiveIntensity=0.1; glowMat.opacity=0;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+// BIRD WING FLAP
+// ═══════════════════════════════════════════
+function animBirds(grp, dt, spd=3) {
+  wingFlapT += dt*spd;
+  grp.traverse(c => {
+    if(c.name==='leftWing')  c.rotation.z =  Math.sin(wingFlapT)*0.45;
+    if(c.name==='rightWing') c.rotation.z =  Math.sin(wingFlapT)*0.45;
+  });
+}
+
+// ═══════════════════════════════════════════
+// CAMERA DRAG (일시정지)
+// ═══════════════════════════════════════════
+function camFromSphere() {
+  camera.position.x = camRadius*Math.sin(camPhi)*Math.sin(camTheta);
+  camera.position.y = camRadius*Math.cos(camPhi) + 0.5;
+  camera.position.z = camRadius*Math.sin(camPhi)*Math.cos(camTheta);
+  camera.lookAt(CAM_TARGET);
+}
+
+renderer.domElement.addEventListener('mousedown', e => {
+  if(!isPaused || gameState!=='free') return;
+  isDragging=true; dragPrev={x:e.clientX,y:e.clientY};
+});
+window.addEventListener('mousemove', e => {
+  if(!isDragging) return;
+  const dx=(e.clientX-dragPrev.x)*0.006, dy=(e.clientY-dragPrev.y)*0.006;
+  camTheta -= dx;
+  camPhi = Math.max(0.12, Math.min(Math.PI*0.88, camPhi+dy));
+  dragPrev={x:e.clientX,y:e.clientY};
+  camFromSphere();
+});
+window.addEventListener('mouseup', ()=> isDragging=false);
+
+// ═══════════════════════════════════════════
+// UI EVENTS
+// ═══════════════════════════════════════════
+document.getElementById('start-btn').addEventListener('click', ()=>{
+  gameState = 'flying';
+  document.getElementById('title-screen').classList.add('hidden');
+  setTimeout(()=>{
+    document.getElementById('title-screen').style.display='none';
+    startFly();
+  }, 1500);
+});
+
+document.getElementById('story-bubble').addEventListener('click', ()=>{
+  if(gameState==='story') nextStory();
+});
+
+document.getElementById('story-mode-btn').addEventListener('click', ()=>{
+  document.getElementById('mode-select').classList.remove('visible');
+  gameState='story'; storyStep=0; showStoryBubble(0);
+});
+
+document.getElementById('free-mode-btn').addEventListener('click', ()=>{
+  document.getElementById('mode-select').classList.remove('visible');
+  enterFreeMode();
+});
+
+document.getElementById('pause-btn').addEventListener('click', ()=>{
+  isPaused = !isPaused;
+  document.getElementById('pause-btn').textContent = isPaused ? '▶ 재생' : '⏸ 일시정지';
+  updateClickables();
+  if(isPaused) {
+    document.getElementById('drag-hint').classList.add('visible');
+    document.getElementById('hint-text').textContent = '가로등 클릭해서 켜고 끄기 | 드래그로 시점 변경';
+    document.getElementById('hint-text').classList.add('visible');
+    setTimeout(()=>document.getElementById('hint-text').classList.remove('visible'), 3500);
+  } else {
+    document.getElementById('drag-hint').classList.remove('visible');
+    camTheta=0; camPhi=0.28;
+    camera.position.set(0,2.5,9); camera.lookAt(CAM_TARGET);
+  }
+});
+
+document.getElementById('speed-slider').addEventListener('input', e=>{
+  rotationSpeed = parseFloat(e.target.value);
+});
+
+document.getElementById('exit-btn').addEventListener('click', startExit);
+
+window.addEventListener('click', e=>{
+  if(gameState!=='free' || e.target!==renderer.domElement || isDragging) return;
+  mouse.x =  (e.clientX/window.innerWidth)*2 - 1;
+  mouse.y = -(e.clientY/window.innerHeight)*2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(clickableObjects, true);
+  if(hits.length > 0) {
+    const type = findType(hits[0].object) || hits[0].object.userData.type;
+    if(type==='lamp' && isPaused)    setLamp(!lampOn, true);
+    else if(type==='lamplighter') showFloatBubble('lamplighter','안녕! 바빠서 말 못해! 😅',2500);
+    else if(type==='prince')      showFloatBubble('prince','안녕하세요! ✨',2500);
+  }
+});
+
+// ═══════════════════════════════════════════
+// FLYING ANIMATION
+// ═══════════════════════════════════════════
+function startFly() {
+  flyingPhase=0; flyingT=0;
+  planetGroup.position.set(8,0,-5);
+  planetGroup.scale.setScalar(0.25);
+  titleFlock.position.set(-14,1,-3);
+  titleFlock.visible = true;
+}
+
+function updateFly(dt) {
+  flyingT += dt;
+  animBirds(titleFlock, dt);
+
+  if(flyingPhase===0) {
+    const t=Math.min(flyingT/3,1), e=t<.5?2*t*t:-1+(4-2*t)*t;
+    titleFlock.position.x = -14+e*20;
+    titleFlock.position.y = 1+Math.sin(t*Math.PI)*1.5+Math.sin(flyingT*2)*0.2;
+    const pt=Math.min(flyingT/4,1);
+    planetGroup.position.x = 8*(1-pt);
+    planetGroup.position.z = -5+pt*5;
+    planetGroup.scale.setScalar(0.25+pt*0.75);
+    if(flyingT>2.5){ flyingPhase=1; flyingT=0; }
+
+  } else if(flyingPhase===1) {
+    const t=Math.min(flyingT/2.5,1), e=t<.5?2*t*t:-1+(4-2*t)*t;
+    titleFlock.position.x = 6+e*(-6);
+    titleFlock.position.y = 3-e*2.8;
+    titleFlock.position.z = -3+e*3;
+    titleFlock.scale.setScalar(1.2*(1-t*0.6));
+    planetGroup.scale.setScalar(1); planetGroup.position.set(0,0,0);
+    if(t>=1){ flyingPhase=2; flyingT=0; }
+
+  } else {
+    const t=Math.min(flyingT/0.8,1);
+    titleFlock.scale.setScalar(0.5*(1-t));
+    if(t>=1){
+      titleFlock.visible=false;
+      gameState='modeSelect';
+      princeGroup.visible=true;
+      document.getElementById('mode-select').classList.add('visible');
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+// EXIT ANIMATION
+// 철새들만 위에서 내려와 행성의 어린왕자 위에 모임
+// 어린왕자가 행성에서 떨어져 철새와 함께 날아감
+// ═══════════════════════════════════════════
+let exitPrinceWorldPos = new THREE.Vector3(); // 어린왕자 월드 좌표 저장
+
+function startExit() {
+  exitActive=true; exitPhase=0; exitT=0;
+
+  // 어린왕자의 현재 월드 좌표 저장
+  princeGroup.getWorldPosition(exitPrinceWorldPos);
+
+  // exitFlock: 철새만, 화면 위에서 시작
+  exitFlock.visible=true;
+  exitFlock.position.set(exitPrinceWorldPos.x, exitPrinceWorldPos.y + 9, exitPrinceWorldPos.z);
+  exitFlock.scale.setScalar(1.2);
+
+  document.getElementById('free-ui').classList.remove('visible');
+  document.getElementById('time-indicator').classList.remove('visible');
+  document.getElementById('drag-hint').classList.remove('visible');
+  document.getElementById('hint-text').classList.remove('visible');
+}
+
+function updateExit(dt) {
+  exitT += dt;
+  animBirds(exitFlock, dt);
+
+  if(exitPhase === 0) {
+    // 철새가 어린왕자 위로 내려옴
+    const t = Math.min(exitT / 1.5, 1);
+    const e = t < .5 ? 2*t*t : -1+(4-2*t)*t;
+    exitFlock.position.y = exitPrinceWorldPos.y + 9 - e * 8.5;
+    exitFlock.position.x = exitPrinceWorldPos.x;
+    exitFlock.position.z = exitPrinceWorldPos.z;
+    if(t >= 1) {
+      exitPhase = 1; exitT = 0;
+      // 어린왕자를 행성에서 분리, scene에 직접 붙임
+      const wp = new THREE.Vector3();
+      princeGroup.getWorldPosition(wp);
+      planetGroup.remove(princeGroup);
+      scene.add(princeGroup);
+      princeGroup.position.copy(wp);
+      princeGroup.rotation.set(0, 0, 0); // 행성 기울기 리셋 (world에서 세움)
+    }
+
+  } else if(exitPhase === 1) {
+    // 철새 + 어린왕자 오른쪽 위로 날아감
+    const t = Math.min(exitT / 2.2, 1);
+    const e = t < .5 ? 2*t*t : -1+(4-2*t)*t;
+    const tx = exitPrinceWorldPos.x + e * 18;
+    const ty = exitPrinceWorldPos.y + e * 8;
+    exitFlock.position.set(tx, ty, exitPrinceWorldPos.z);
+    // 어린왕자도 함께 이동
+    princeGroup.position.set(tx, ty - 1.0, exitPrinceWorldPos.z);
+    if(t >= 1) { exitPhase = 2; exitT = 0; }
+
+  } else {
+    // 페이드 아웃 후 타이틀로
+    const fade = document.getElementById('fade-overlay');
+    const t = Math.min(exitT / 1.5, 1);
+    fade.style.opacity = t;
+    if(t >= 1) {
+      exitActive = false; exitFlock.visible = false;
+      gameState = 'title';
+      isPaused = false; camTheta=0; camPhi=0.28;
+      camera.position.set(0,2.5,9); camera.lookAt(CAM_TARGET);
+
+      // 어린왕자 원상복구 (scene → planetGroup)
+      scene.remove(princeGroup);
+      planetGroup.add(princeGroup);
+      princeGroup.position.set(Math.sin(PRINCE_ANGLE)*SURFACE_R, Math.cos(PRINCE_ANGLE)*SURFACE_R, 0);
+      princeGroup.rotation.set(0, 0, -PRINCE_ANGLE);
+      princeGroup.visible = false;
+
+      titleFlock.visible=true; titleFlock.position.set(-12,2,-3); titleFlock.scale.setScalar(1.2);
+      planetGroup.scale.setScalar(1); planetGroup.position.set(0,0,0);
+      document.getElementById('title-screen').style.display='flex';
+      setTimeout(()=>{
+        document.getElementById('title-screen').classList.remove('hidden');
+        document.getElementById('title-screen').style.opacity='1';
+        fade.style.opacity = 0;
+      }, 100);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  elapsed += dt;
+
+  // 태양 공전 (타이틀 포함 항상)
+  if(gameState !== 'loading') {
+    if(gameState==='title') {
+      // 타이틀에서 느리게 - yz 평면 시계방향 공전
+      spaceAngle += dt * 0.25;
+      const sy =  Math.cos(spaceAngle) * SUN_ORBIT_R;
+      const sz = -Math.sin(spaceAngle) * SUN_ORBIT_R;
+      const sx =  Math.sin(spaceAngle) * 1.5;
+      sunGroup.position.set(sx, sy, sz);
+      sunMesh.lookAt(camera.position);
+    } else if(gameState==='free' || gameState==='story' || gameState==='flying' || gameState==='modeSelect') {
+      updateSunOrbit(dt);
+    }
+  }
+
+  if(gameState==='flying') updateFly(dt);
+
+  if(gameState==='free' || gameState==='story') {
+    updateLampAnim(dt);
+    updateBubblePos();
+  }
+
+  if(gameState==='title') {
+    animBirds(titleFlock, dt);
+    titleFlock.position.y = 2+Math.sin(elapsed*.5)*.3;
+    titleFlock.position.x = -12+Math.sin(elapsed*.2)*.4;
+  }
+
+  if(exitActive) updateExit(dt);
+
+  renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+// 처음엔 낮쪽에서 시작 (가로등 꺼짐)
+setLamp(false, false);
+spaceAngle = 0; // 태양이 오른쪽 = 낮
+
+setTimeout(()=>{
+  document.getElementById('loading').style.display='none';
+  gameState='title';
+}, 500);
+
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>
