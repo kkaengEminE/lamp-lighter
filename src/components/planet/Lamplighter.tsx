@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { useGameStore } from '../../store/useGameStore';
-import { PLANET_R, SURFACE_R, MAN_ANGLE } from '../../data/constants';
+import { SURFACE_R, MAN_ANGLE } from '../../data/constants';
 
 export function Lamplighter() {
   const stickRef = useRef<THREE.Mesh>(null);

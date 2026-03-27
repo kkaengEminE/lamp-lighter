@@ -1,7 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 
 export function Stars() {
+  const whiteGeoRef = useRef<THREE.BufferGeometry>(null);
+  const yellowGeoRef = useRef<THREE.BufferGeometry>(null);
+
   const whitePositions = useMemo(() => {
     const cnt = 2500;
     const pos = new Float32Array(cnt * 3);
@@ -27,28 +30,29 @@ export function Stars() {
     return pos;
   }, []);
 
+  useEffect(() => {
+    if (whiteGeoRef.current) {
+      whiteGeoRef.current.setAttribute(
+        'position',
+        new THREE.BufferAttribute(whitePositions, 3)
+      );
+    }
+    if (yellowGeoRef.current) {
+      yellowGeoRef.current.setAttribute(
+        'position',
+        new THREE.BufferAttribute(yellowPositions, 3)
+      );
+    }
+  }, [whitePositions, yellowPositions]);
+
   return (
     <>
       <points>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            array={whitePositions}
-            count={2500}
-            itemSize={3}
-          />
-        </bufferGeometry>
+        <bufferGeometry ref={whiteGeoRef} />
         <pointsMaterial color={0xffffff} size={0.35} sizeAttenuation />
       </points>
       <points>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            array={yellowPositions}
-            count={80}
-            itemSize={3}
-          />
-        </bufferGeometry>
+        <bufferGeometry ref={yellowGeoRef} />
         <pointsMaterial color={0xf5e642} size={0.55} />
       </points>
     </>

@@ -10,8 +10,6 @@ export function StoryBubble() {
 
   const handleClick = () => {
     if (gameState !== 'story') return;
-    const current = storyScript[storyStep];
-
     // Advance to next step
     const next = storyStep + 1;
     if (next >= storyScript.length) {
